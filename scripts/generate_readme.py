@@ -29,6 +29,10 @@ def find_files(directory, extensions):
     ]
 
 
+# ---------------------------------------------------------
+# Project
+# ---------------------------------------------------------
+
 def get_project_name():
     content = read_file(PROJECT_FILE)
 
@@ -40,6 +44,10 @@ def get_project_name():
 
     return match.group(1) if match else "dbt Project"
 
+
+# ---------------------------------------------------------
+# Models
+# ---------------------------------------------------------
 
 def get_models():
     return find_files(MODELS_DIR, {".sql"})
@@ -69,6 +77,10 @@ def get_materialization(path):
 
     return match.group(1) if match else "default"
 
+
+# ---------------------------------------------------------
+# YAML metadata
+# ---------------------------------------------------------
 
 def get_yaml_files():
     return find_files(MODELS_DIR, {".yml", ".yaml"})
@@ -104,13 +116,113 @@ def get_model_descriptions():
     return descriptions
 
 
+# ---------------------------------------------------------
+# Tests
+# ---------------------------------------------------------
+
+def get_sql_tests():
+    """
+    Count custom SQL tests stored in the tests/ directory.
+    """
+    return find_files(TESTS_DIR, {".sql"})
+
+
+def get_yaml_tests():
+    """
+    Count dbt tests defined in YAML files.
+
+    This detects common generic tests such as:
+      - unique
+      - not_null
+      - accepted_values
+      - relationships
+
+    It also counts custom test names.
+    """
+
+    test_count = 0
+
+    test_types = {
+        "unique",
+        "not_null",
+        "accepted_values",
+        "relationships",
+    }
+
+    for yaml_file in get_yaml_files():
+        content = read_file(yaml_file)
+
+        # Find blocks beginning with "tests:"
+        test_blocks = re.findall(
+            r"(?:tests|data_tests):\s*(.*?)(?=\n\s{0,6}\w|\Z)",
+            content,
+            re.DOTALL,
+        )
+
+        for block in test_blocks:
+
+            # Simple tests:
+            #
+            # tests:
+            #   - unique
+            #   - not_null
+            #
+            simple_tests = re.findall(
+                r"^\s*-\s*([A-Za-z_][A-Za-z0-9_]*)\s*$",
+                block,
+                re.MULTILINE,
+            )
+
+            for test_name in simple_tests:
+                if test_name in test_types:
+                    test_count += 1
+
+            # Configured tests:
+            #
+            # - accepted_values:
+            #     values: [...]
+            #
+            # - relationships:
+            #     to: ref(...)
+            #
+            configured_tests = re.findall(
+                r"^\s*-\s*([A-Za-z_][A-Za-z0-9_]*):\s*$",
+                block,
+                re.MULTILINE,
+            )
+
+            for test_name in configured_tests:
+                test_count += 1
+
+    return test_count
+
+
+def get_total_tests():
+    """
+    Return total tests detected by the repository.
+
+    This includes:
+      - YAML-defined dbt tests
+      - Custom SQL tests
+    """
+
+    yaml_tests = get_yaml_tests()
+    sql_tests = get_sql_tests()
+
+    return yaml_tests + len(sql_tests)
+
+
+# ---------------------------------------------------------
+# Seeds
+# ---------------------------------------------------------
+
 def get_seeds():
     return find_files(SEEDS_DIR, {".csv", ".tsv"})
 
 
-def get_tests():
-    return find_files(TESTS_DIR, {".sql"})
-
+# ---------------------------------------------------------
+# Markdown generation
+# ---------------------------------------------------------
 
 def generate_model_table(models, descriptions):
     if not models:
@@ -148,12 +260,21 @@ def generate_seed_table(seeds):
     return "\n".join(rows)
 
 
+# ---------------------------------------------------------
+# README
+# ---------------------------------------------------------
+
 def generate_readme():
+
     project_name = get_project_name()
 
     models = get_models()
     seeds = get_seeds()
-    tests = get_tests()
+
+    sql_tests = get_sql_tests()
+    yaml_tests = get_yaml_tests()
+
+    total_tests = len(sql_tests) + yaml_tests
 
     descriptions = get_model_descriptions()
 
@@ -172,7 +293,8 @@ def generate_readme():
     other_models = [
         model
         for model in models
-        if get_model_layer(model) not in {"staging", "marts"}
+        if get_model_layer(model)
+        not in {"staging", "marts"}
     ]
 
     generated_date = date.today().isoformat()
@@ -194,7 +316,10 @@ def generate_readme():
     if other_models:
         other_section = (
             "\n## Other Models\n\n"
-            + generate_model_table(other_models, descriptions)
+            + generate_model_table(
+                other_models,
+                descriptions,
+            )
             + "\n"
         )
 
@@ -214,7 +339,7 @@ def generate_readme():
 | Staging Models | {len(staging_models)} |
 | Mart Models | {len(mart_models)} |
 | Seeds | {len(seeds)} |
-| SQL Tests | {len(tests)} |
+| Data Tests | {total_tests} |
 
 ---
 
@@ -254,7 +379,11 @@ Mart models contain business-ready analytical datasets.
 
 ## 🧪 Data Quality
 
-This project currently contains **{len(tests)} SQL tests**.
+This project currently contains:
+
+- **{total_tests} data tests**
+- **{yaml_tests} tests defined in YAML**
+- **{len(sql_tests)} custom SQL tests**
 
 Tests help validate the quality and reliability of the
 transformed datasets.
@@ -267,7 +396,7 @@ transformed datasets.
 - `models/staging/` — staging models
 - `models/marts/` — analytical models
 - `seeds/` — seed data
-- `tests/` — data quality tests
+- `tests/` — custom data quality tests
 - `macros/` — reusable SQL macros
 - `snapshots/` — historical snapshots
 - `analyses/` — analytical SQL
@@ -319,6 +448,11 @@ _Generated automatically on {generated_date}._
     )
 
     print(f"README generated successfully: {README_FILE}")
+    print(f"Models: {len(models)}")
+    print(f"Seeds: {len(seeds)}")
+    print(f"YAML tests: {yaml_tests}")
+    print(f"SQL tests: {len(sql_tests)}")
+    print(f"Total tests: {total_tests}")
 
 
 if __name__ == "__main__":
