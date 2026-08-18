@@ -1,7 +1,7 @@
 # Name your project! Project names should contain only lowercase characters
 # and underscores. A good package name should reflect your organization's
 # name or the intended use of these models
-name: 'my_new_project'
+name: 'dbt_ecommerce'
 version: '1.0.0'
 config-version: 2
 
@@ -19,11 +19,11 @@ macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
 seeds:
-  my_new_project:
+  dbt_ecommerce:
     +schema: raw
 
 models:
-  my_new_project:
+  dbt_ecommerce:
     staging:
       +materialized: view
       +schema: staging
