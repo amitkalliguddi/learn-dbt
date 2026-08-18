@@ -1,4 +1,4 @@
-# my_new_project
+# dbt_ecommerce
 
 > dbt project for transforming raw e-commerce data into
 > analytics-ready datasets.
@@ -13,7 +13,7 @@
 | Staging Models | 4 |
 | Mart Models | 3 |
 | Seeds | 5 |
-| SQL Tests | 1 |
+| Data Tests | 12 |
 
 ---
 
@@ -68,7 +68,11 @@ Mart models contain business-ready analytical datasets.
 
 ## 🧪 Data Quality
 
-This project currently contains **1 SQL tests**.
+This project currently contains:
+
+- **12 data tests**
+- **11 tests defined in YAML**
+- **1 custom SQL tests**
 
 Tests help validate the quality and reliability of the
 transformed datasets.
@@ -81,7 +85,7 @@ transformed datasets.
 - `models/staging/` — staging models
 - `models/marts/` — analytical models
 - `seeds/` — seed data
-- `tests/` — data quality tests
+- `tests/` — custom data quality tests
 - `macros/` — reusable SQL macros
 - `snapshots/` — historical snapshots
 - `analyses/` — analytical SQL
